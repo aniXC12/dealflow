@@ -82,7 +82,10 @@ export default function SignalClient({ results }: { results: SignalResult[] }) {
 
               {result.matchedThemes.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-3">
-                  {result.matchedThemes.map((theme) => (
+                  {[...result.matchedThemes]
+                    .sort((a, b) => b.length - a.length)
+                    .slice(0, 8)
+                    .map((theme) => (
                     <span
                       key={theme}
                       className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700"
