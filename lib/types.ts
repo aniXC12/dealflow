@@ -26,3 +26,12 @@ export interface PHPost {
   tagline: string;
   url: string;
 }
+
+export interface SignalResult {
+  company: YCCompany;
+  score: number;
+  matchedThemes: string[];
+  sources: ('a16z' | 'sequoia')[];
+  consensus: boolean;
+  topPost: VCPost;
+}
