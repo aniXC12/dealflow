@@ -4,7 +4,27 @@ const SKIP_WORDS = new Set([
   'portfolio', 'team', 'excited', 'new', 'our', 'the', 'and', 'for',
   'with', 'that', 'this', 'from',
   'appeared', 'first', 'sequoia', 'capital', 'post', 'partnering', 'auctor', 'nominal',
+  'ineffable', 'superlearner', 'spotlight', 'hierarchy', 'firetiger', 'scanner',
 ]);
+
+const DOMAIN_TAGS: Record<string, string[]> = {
+  biotech: ['biotech', 'healthcare', 'medical', 'clinical', 'pharma'],
+  defense: ['defense', 'govtech', 'military'],
+  fintech: ['fintech', 'finance', 'payments', 'insurance'],
+};
+
+function getDomain(tags: string[]): string | null {
+  if (tags.length === 0) return null;
+  const tagsLower = tags.map((t) => t.toLowerCase());
+  const matchedDomains: string[] = [];
+  for (const [domain, domainTagList] of Object.entries(DOMAIN_TAGS)) {
+    const hasMatch = tagsLower.some((tag) =>
+      domainTagList.some((dt) => tag.includes(dt) || dt.includes(tag))
+    );
+    if (hasMatch) matchedDomains.push(domain);
+  }
+  return matchedDomains.length === 1 ? matchedDomains[0] : null;
+}
 
 function extractThemes(post: VCPost): Map<string, number> {
   const text = `${post.title} ${post.contentSnippet}`
@@ -72,6 +92,11 @@ export function scoreSignals(
     titleWords: extractTitleWords(post.title),
     weight: getRecencyWeight(post.pubDate),
   }));
+
+  // Pre-compute all title words across all VC posts for domain coverage check
+  const allTitleWords = vcPosts.flatMap((p) =>
+    p.title.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/).filter((w) => w.length >= 3)
+  );
 
   const results: SignalResult[] = [];
   let rawCount = 0;
@@ -149,6 +174,19 @@ export function scoreSignals(
     }
 
     if (totalScore > 0 && topPost !== undefined) {
+      // Domain mismatch penalty: if company is exclusively in one specialized domain
+      // but VC posts don't mention that domain's vocabulary, reduce score by 60%
+      const companyDomain = getDomain(company.tags);
+      if (companyDomain !== null) {
+        const domainVocab = DOMAIN_TAGS[companyDomain];
+        const hasVCDomainCoverage = domainVocab.some((word) =>
+          allTitleWords.some((tw) => tw.includes(word))
+        );
+        if (!hasVCDomainCoverage) {
+          totalScore *= 0.4;
+        }
+      }
+
       rawCount++;
       results.push({
         company,
@@ -163,5 +201,6 @@ export function scoreSignals(
 
   const sorted = results.sort((a, b) => b.score - a.score);
   console.log('[scoreSignals] raw signals before slice:', rawCount, '→ returning:', Math.min(rawCount, 40));
+  console.log('[scoreSignals] top 5:', sorted.slice(0, 5).map((r) => `${r.company.name} (${r.score.toFixed(1)})`).join(', '));
   return sorted.slice(0, 40);
 }
