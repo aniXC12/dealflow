@@ -130,22 +130,43 @@ interface HNResponse {
 }
 
 export async function fetchHNStories(): Promise<HNStory[]> {
+  const queries = ['YC+startup', 'series+a+funding', 'venture+capital+investment'];
   try {
-    const res = await fetch(
-      'https://hn.algolia.com/api/v1/search?tags=story&hitsPerPage=30&query=startup+funding',
-      {
-        signal: makeSignal(5000),
-        next: { revalidate: 3600 },
-      }
+    const responses = await Promise.all(
+      queries.map((q) =>
+        fetch(
+          `https://hn.algolia.com/api/v1/search?tags=story&hitsPerPage=20&query=${q}`,
+          { signal: makeSignal(5000), next: { revalidate: 3600 } }
+        )
+      )
     );
-    if (!res.ok) return [];
-    const data: HNResponse = await res.json();
-    return data.hits.map((hit) => ({
-      title: hit.title ?? '',
-      url: hit.url ?? '',
-      points: hit.points ?? 0,
-      created_at: hit.created_at ?? '',
-    }));
+
+    const allHits: HNHit[] = [];
+    for (const res of responses) {
+      if (!res.ok) continue;
+      const data: HNResponse = await res.json();
+      allHits.push(...data.hits);
+    }
+
+    // Deduplicate by title
+    const seen = new Set<string>();
+    const deduped: HNHit[] = [];
+    for (const hit of allHits) {
+      if (!seen.has(hit.title)) {
+        seen.add(hit.title);
+        deduped.push(hit);
+      }
+    }
+
+    return deduped
+      .sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
+      .slice(0, 30)
+      .map((hit) => ({
+        title: hit.title ?? '',
+        url: hit.url ?? '',
+        points: hit.points ?? 0,
+        created_at: hit.created_at ?? '',
+      }));
   } catch {
     return [];
   }
