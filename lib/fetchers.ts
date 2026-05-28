@@ -23,35 +23,65 @@ async function fetchXML(url: string): Promise<string | null> {
 export async function fetchYCCompanies(): Promise<YCCompany[]> {
   try {
     const res = await fetch(
-      'https://yc-oss.github.io/api/companies/launched.json',
+      'https://yc-oss.github.io/api/companies/all.json',
       {
         signal: makeSignal(5000),
         next: { revalidate: 3600 },
       }
     );
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.log('[fetchYCCompanies] HTTP', res.status);
+      return [];
+    }
     const data: YCCompany[] = await res.json();
+    console.log('[fetchYCCompanies] total:', data.length, 'first keys:', Object.keys(data[0] ?? {}));
     return data.slice(-50);
-  } catch {
+  } catch (e) {
+    console.error('[fetchYCCompanies] error:', e);
     return [];
   }
 }
 
+// a16z.com/feed/ and a16z.com/blog/feed/ both return 404 as of 2025.
+// Active feed: https://a16z.substack.com/feed (tried in order as fallback chain).
+const A16Z_FEED_URLS = [
+  'https://a16z.com/feed/',
+  'https://a16z.com/blog/feed/',
+  'https://a16z.substack.com/feed',
+];
+
 export async function fetchA16zPosts(): Promise<VCPost[]> {
-  try {
-    const xml = await fetchXML('https://a16z.com/feed/');
-    if (!xml) return [];
-    const feed = await parser.parseString(xml);
-    return feed.items.slice(0, 20).map((item) => ({
-      title: item.title ?? '',
-      link: item.link ?? '',
-      pubDate: item.pubDate ?? '',
-      contentSnippet: item.contentSnippet ?? '',
-      source: 'a16z' as const,
-    }));
-  } catch {
-    return [];
+  for (const url of A16Z_FEED_URLS) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(url, {
+        signal: controller.signal,
+        next: { revalidate: 3600 },
+      });
+      clearTimeout(timer);
+      console.log('[fetchA16zPosts] status:', res.status, 'url:', url);
+      if (!res.ok) continue;
+      const xml = await res.text();
+      const feed = await parser.parseString(xml);
+      if (feed.items.length === 0) continue;
+      return feed.items.slice(0, 20).map((item) => {
+        const snippet = item.contentSnippet?.trim() || '';
+        const contentSnippet = snippet ||
+          (item.content ?? '').replace(/<[^>]+>/g, '').slice(0, 200);
+        return {
+          title: item.title ?? '',
+          link: item.link ?? '',
+          pubDate: item.pubDate ?? '',
+          contentSnippet,
+          source: 'a16z' as const,
+        };
+      });
+    } catch (e) {
+      console.log('[fetchA16zPosts] failed:', url, e instanceof Error ? e.message : e);
+    }
   }
+  return [];
 }
 
 export async function fetchSequoiaPosts(): Promise<VCPost[]> {
@@ -59,13 +89,20 @@ export async function fetchSequoiaPosts(): Promise<VCPost[]> {
     const xml = await fetchXML('https://www.sequoiacap.com/feed/');
     if (!xml) return [];
     const feed = await parser.parseString(xml);
-    return feed.items.slice(0, 20).map((item) => ({
-      title: item.title ?? '',
-      link: item.link ?? '',
-      pubDate: item.pubDate ?? '',
-      contentSnippet: item.contentSnippet ?? '',
-      source: 'sequoia' as const,
-    }));
+    return feed.items.slice(0, 20).map((item) => {
+      const stripped = (item.contentSnippet ?? '')
+        .replace(/The post .* appeared first on Sequoia Capital\./, '')
+        .trim();
+      const contentSnippet = stripped ||
+        (item.content ?? '').replace(/<[^>]+>/g, '').slice(0, 200);
+      return {
+        title: item.title ?? '',
+        link: item.link ?? '',
+        pubDate: item.pubDate ?? '',
+        contentSnippet,
+        source: 'sequoia' as const,
+      };
+    });
   } catch {
     return [];
   }
