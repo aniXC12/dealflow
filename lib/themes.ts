@@ -11,6 +11,7 @@ const SKIP_WORDS = new Set([
   'portfolio', 'team', 'excited', 'new', 'our', 'the', 'and', 'for',
   'with', 'that', 'this', 'from',
   'appeared', 'nominal', 'spotlight', 'partnering', 'auctor',
+  'isn', 'why', 'road', 'brick', 'yellow', 'dead', 'layer',
 ]);
 
 const BLOCKED_PHRASES = new Set([
@@ -18,6 +19,8 @@ const BLOCKED_PHRASES = new Set([
   'appeared first sequoia', 'first sequoia capital',
   'post partnering', 'all systems', 'systems nominal',
   'nominal nominal', 'nominal spotlight',
+  'isn dead', 'layer isn', 'road why', 'brick road', 'yellow brick',
+  'app layer', 'avoiding death', 'everything everywhere',
 ]);
 
 function extractNgrams(text: string): string[] {
@@ -62,12 +65,16 @@ export function getThemeFrequency(vcPosts: VCPost[]): ThemeFrequency[] {
 
   for (const post of vcPosts) {
     const ngrams = extractNgrams(`${post.title} ${post.contentSnippet}`);
+    const freq: Record<string, number> = {};
     for (const ngram of ngrams) {
+      freq[ngram] = (freq[ngram] ?? 0) + 1;
+    }
+    for (const [ngram, count] of Object.entries(freq)) {
       if (isBoilerplate(ngram)) continue;
       if (!totals[ngram]) totals[ngram] = { total: 0, a16z: 0, sequoia: 0 };
-      totals[ngram].total += 1;
-      if (post.source === 'a16z') totals[ngram].a16z += 1;
-      else totals[ngram].sequoia += 1;
+      totals[ngram].total += count;
+      if (post.source === 'a16z') totals[ngram].a16z += count;
+      else totals[ngram].sequoia += count;
     }
   }
 

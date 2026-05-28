@@ -7,13 +7,25 @@ type Filter = 'All' | 'Consensus Only' | 'a16z' | 'Sequoia';
 
 const FILTERS: Filter[] = ['All', 'Consensus Only', 'a16z', 'Sequoia'];
 
+const NOISE_WORDS = new Set([
+  'your', 'local', 'plaintiff', 'whether', 'think', 'caught', 'every',
+  'tells', 'story', 'find', 'learn', 'might', 'call', 'kill', 'muscle',
+  'memory', 'slop', 'surplus', 'ethos', 'fellows', 'scanner',
+]);
+
+function cleanThemes(themes: string[]): string[] {
+  return themes.filter(
+    (t) => t.length >= 8 && !t.split(' ').some((w) => NOISE_WORDS.has(w)),
+  );
+}
+
 function buildWhySummary(result: SignalResult): string {
-  const top2 = [...result.matchedThemes]
-    .sort((a, b) => b.length - a.length)
-    .slice(0, 2);
-  const themePart = top2.length >= 2
-    ? `${top2[0]} and ${top2[1]}`
-    : top2[0] ?? 'emerging themes';
+  const cleaned = cleanThemes(result.matchedThemes);
+  if (cleaned.length === 0) {
+    return 'Aligns with recent VC investment activity';
+  }
+  const top2 = [...cleaned].sort((a, b) => b.length - a.length).slice(0, 2);
+  const themePart = top2.length >= 2 ? `${top2[0]} and ${top2[1]}` : top2[0];
 
   if (result.consensus) {
     return `Matches themes both a16z and Sequoia are writing about — including ${themePart}`;
@@ -73,10 +85,13 @@ export default function SignalClient({ results }: { results: SignalResult[] }) {
         ))}
       </div>
 
-      <div className="border border-zinc-700 rounded-lg px-4 py-3 mb-6">
+      <div className="bg-orange-950/20 border border-orange-900/30 rounded-lg px-4 py-3 mb-6 space-y-1">
+        <p className="text-white text-sm font-medium">How it works</p>
+        <p className="text-zinc-300 text-sm leading-relaxed">
+          We score 5,900+ YC companies against themes from the latest a16z and Sequoia posts using a recency-weighted model.
+        </p>
         <p className="text-zinc-400 text-xs leading-relaxed">
-          Consensus signals appear when the same investment theme surfaces in both a16z and Sequoia
-          content within 30 days. Scored across 5,900+ YC companies.
+          Consensus = same theme surfacing in both firms within 30 days. Higher score = stronger overlap.
         </p>
       </div>
 
@@ -113,11 +128,9 @@ export default function SignalClient({ results }: { results: SignalResult[] }) {
                 </span>
               </div>
 
-              {result.matchedThemes.length > 0 && (
-                <p className="text-zinc-500 text-xs mt-3 italic">
-                  {buildWhySummary(result)}
-                </p>
-              )}
+              <p className="text-zinc-500 text-xs mt-3 italic">
+                {buildWhySummary(result)}
+              </p>
 
               <div className="flex items-center gap-3 mt-3 flex-wrap">
                 {result.sources.map((source) => (
