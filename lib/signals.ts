@@ -40,9 +40,14 @@ function extractThemes(post: VCPost): Map<string, number> {
 }
 
 function getRecencyWeight(pubDate: string): number {
-  const date = new Date(pubDate);
-  if (isNaN(date.getTime())) return 0.3;
-  const ageDays = (Date.now() - date.getTime()) / 86_400_000;
+  let ts = new Date(pubDate).getTime();
+  if (isNaN(ts)) ts = Date.parse(pubDate);
+  if (isNaN(ts)) {
+    console.log('[getRecencyWeight] unparseable pubDate:', JSON.stringify(pubDate));
+    return 0.3;
+  }
+  console.log('[getRecencyWeight] parsed:', JSON.stringify(pubDate), '->', new Date(ts).toISOString());
+  const ageDays = (Date.now() - ts) / 86_400_000;
   if (ageDays < 7) return 1.0;
   if (ageDays <= 30) return 0.7;
   return 0.3;

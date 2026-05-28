@@ -92,9 +92,19 @@ export async function fetchSequoiaPosts(): Promise<VCPost[]> {
     return feed.items.slice(0, 20).map((item) => {
       const stripped = (item.contentSnippet ?? '')
         .replace(/The post .* appeared first on Sequoia Capital\./, '')
+        .replace(/&#\d+;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
         .trim();
       const contentSnippet = stripped ||
-        (item.content ?? '').replace(/<[^>]+>/g, '').slice(0, 200);
+        (item.content ?? '')
+          .replace(/<[^>]+>/g, '')
+          .replace(/The post .* appeared first on Sequoia Capital\./, '')
+          .trim()
+          .slice(0, 200);
       return {
         title: item.title ?? '',
         link: item.link ?? '',

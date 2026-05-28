@@ -9,6 +9,7 @@ export default async function ThemesPage() {
   ]);
 
   const themes = getThemeFrequency([...a16zPosts, ...sequoiaPosts]);
+  console.log('[ThemesPage] vcPosts:', a16zPosts.length + sequoiaPosts.length, 'themes:', themes.length, 'top3:', themes.slice(0, 3).map((t) => t.theme));
 
   return <ThemesChart themes={themes} />;
 }
