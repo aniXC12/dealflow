@@ -12,6 +12,7 @@ const SKIP_WORDS = new Set([
   'with', 'that', 'this', 'from',
   'appeared', 'nominal', 'spotlight', 'partnering', 'auctor',
   'isn', 'why', 'road', 'brick', 'yellow', 'dead', 'layer',
+  'also', 'most', 'boring',
 ]);
 
 const BLOCKED_PHRASES = new Set([
@@ -21,6 +22,9 @@ const BLOCKED_PHRASES = new Set([
   'nominal nominal', 'nominal spotlight',
   'isn dead', 'layer isn', 'road why', 'brick road', 'yellow brick',
   'app layer', 'avoiding death', 'everything everywhere',
+  'opportunity also', 'also its', 'its most', 'most boring',
+  'science small', 'small business', 'computer science',
+  'charts week', 'week memory', 'memory moon', 'reflections sohn',
 ]);
 
 function extractNgrams(text: string): string[] {
@@ -57,7 +61,10 @@ function extractNgrams(text: string): string[] {
 
 function isBoilerplate(theme: string): boolean {
   if (BLOCKED_PHRASES.has(theme)) return true;
-  return theme.split(' ').every((w) => SKIP_WORDS.has(w));
+  const words = theme.split(' ');
+  if (words.every((w) => SKIP_WORDS.has(w))) return true;
+  const shortCount = words.filter((w) => w.length < 4).length;
+  return shortCount > words.length / 2;
 }
 
 export function getThemeFrequency(vcPosts: VCPost[]): ThemeFrequency[] {
@@ -78,13 +85,31 @@ export function getThemeFrequency(vcPosts: VCPost[]): ThemeFrequency[] {
     }
   }
 
-  return Object.entries(totals)
-    .sort((a, b) => b[1].total - a[1].total)
-    .slice(0, 20)
-    .map(([theme, counts]) => ({
-      theme,
-      count: counts.total,
-      a16zCount: counts.a16z,
-      sequoiaCount: counts.sequoia,
-    }));
+  // Sort by score desc; break ties by word count desc so longer phrases survive dedup
+  const sorted = Object.entries(totals).sort(
+    (a, b) =>
+      b[1].total - a[1].total ||
+      b[0].split(' ').length - a[0].split(' ').length,
+  );
+
+  // Remove any theme whose word set is a strict subset of an already-kept theme's word set
+  const kept: typeof sorted = [];
+  for (const entry of sorted) {
+    const themeWords = new Set(entry[0].split(' '));
+    const dominated = kept.some(([keptTheme]) => {
+      const keptWords = new Set(keptTheme.split(' '));
+      return (
+        themeWords.size < keptWords.size &&
+        Array.from(themeWords).every((w) => keptWords.has(w))
+      );
+    });
+    if (!dominated) kept.push(entry);
+  }
+
+  return kept.slice(0, 20).map(([theme, counts]) => ({
+    theme,
+    count: counts.total,
+    a16zCount: counts.a16z,
+    sequoiaCount: counts.sequoia,
+  }));
 }
