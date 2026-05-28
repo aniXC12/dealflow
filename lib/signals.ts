@@ -3,6 +3,7 @@ import type { YCCompany, VCPost, SignalResult } from './types';
 const SKIP_WORDS = new Set([
   'portfolio', 'team', 'excited', 'new', 'our', 'the', 'and', 'for',
   'with', 'that', 'this', 'from',
+  'appeared', 'first', 'sequoia', 'capital', 'post', 'partnering', 'auctor', 'nominal',
 ]);
 
 function extractThemes(post: VCPost): Map<string, number> {
@@ -39,6 +40,14 @@ function extractThemes(post: VCPost): Map<string, number> {
   return themes;
 }
 
+function extractTitleWords(title: string): string[] {
+  return title
+    .toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter((t) => t.length >= 3 && !/^\d+$/.test(t) && !SKIP_WORDS.has(t));
+}
+
 function getRecencyWeight(pubDate: string): number {
   let ts = new Date(pubDate).getTime();
   if (isNaN(ts)) ts = Date.parse(pubDate);
@@ -60,10 +69,12 @@ export function scoreSignals(
   const postData = vcPosts.map((post) => ({
     post,
     themes: extractThemes(post),
+    titleWords: extractTitleWords(post.title),
     weight: getRecencyWeight(post.pubDate),
   }));
 
   const results: SignalResult[] = [];
+  let rawCount = 0;
 
   for (const company of ycCompanies) {
     const nameLower = company.name.toLowerCase();
@@ -78,20 +89,50 @@ export function scoreSignals(
     let topPost: VCPost | undefined;
     let topPostScore = 0;
 
-    for (const { post, themes, weight } of postData) {
+    for (const { post, themes, titleWords, weight } of postData) {
       let postScore = 0;
 
+      // N-gram themes: exact phrase at full score, per-word partial at half score
       themes.forEach((_, theme) => {
-        let themeScore = 0;
-        if (nameLower.includes(theme)) themeScore += 3;
-        if (linerLower.includes(theme)) themeScore += 2;
-        if (tagsLower.includes(theme)) themeScore += 1;
+        let exactScore = 0;
+        if (nameLower.includes(theme)) exactScore += 3;
+        if (linerLower.includes(theme)) exactScore += 2;
+        if (tagsLower.includes(theme)) exactScore += 1;
 
-        if (themeScore > 0) {
-          postScore += themeScore * weight;
+        if (exactScore > 0) {
+          postScore += exactScore * weight;
+          matchedThemesSet.add(theme);
+          return; // skip partial check for this theme
+        }
+
+        // Partial: any word (3+ chars) in the phrase present in name/liner/tags
+        const words = theme.split(' ').filter((w) => w.length >= 3);
+        let partialName = 0;
+        let partialLiner = 0;
+        let partialTags = 0;
+        for (const word of words) {
+          if (nameLower.includes(word)) partialName = 1.5;
+          if (linerLower.includes(word)) partialLiner = 1.0;
+          if (tagsLower.includes(word)) partialTags = 0.5;
+        }
+        const partialScore = partialName + partialLiner + partialTags;
+        if (partialScore > 0) {
+          postScore += partialScore * weight;
           matchedThemesSet.add(theme);
         }
       });
+
+      // Individual meaningful words from VC post title
+      for (const word of titleWords) {
+        if (matchedThemesSet.has(word)) continue;
+        let wordScore = 0;
+        if (nameLower.includes(word)) wordScore += 1.0;
+        if (linerLower.includes(word)) wordScore += 0.5;
+        if (wordScore > 0) {
+          postScore += wordScore * weight;
+          matchedThemesSet.add(word);
+        }
+      }
 
       if (postScore > 0) {
         totalScore += postScore;
@@ -106,17 +147,20 @@ export function scoreSignals(
       }
     }
 
-    if (totalScore === 0 || topPost === undefined) continue;
-
-    results.push({
-      company,
-      score: totalScore,
-      matchedThemes: Array.from(matchedThemesSet),
-      sources: Array.from(sourcesSet),
-      consensus: a16zScore > 0 && sequoiaScore > 0,
-      topPost,
-    });
+    if (totalScore > 0 && topPost !== undefined) {
+      rawCount++;
+      results.push({
+        company,
+        score: totalScore,
+        matchedThemes: Array.from(matchedThemesSet),
+        sources: Array.from(sourcesSet),
+        consensus: a16zScore > 0 && sequoiaScore > 0,
+        topPost,
+      });
+    }
   }
 
-  return results.sort((a, b) => b.score - a.score).slice(0, 40);
+  const sorted = results.sort((a, b) => b.score - a.score);
+  console.log('[scoreSignals] raw signals before slice:', rawCount, '→ returning:', Math.min(rawCount, 40));
+  return sorted.slice(0, 40);
 }
