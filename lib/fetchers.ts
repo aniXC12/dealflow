@@ -34,8 +34,8 @@ export async function fetchYCCompanies(): Promise<YCCompany[]> {
       return [];
     }
     const data: YCCompany[] = await res.json();
-    console.log('[fetchYCCompanies] total:', data.length, 'first keys:', Object.keys(data[0] ?? {}));
-    return data.slice(-50);
+    console.log('[fetchYCCompanies] total:', data.length);
+    return data;
   } catch (e) {
     console.error('[fetchYCCompanies] error:', e);
     return [];

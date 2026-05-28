@@ -45,7 +45,7 @@ function extractTitleWords(title: string): string[] {
     .toLowerCase()
     .replace(/[^\w\s]/g, ' ')
     .split(/\s+/)
-    .filter((t) => t.length >= 3 && !/^\d+$/.test(t) && !SKIP_WORDS.has(t));
+    .filter((t) => t.length >= 4 && !/^\d+$/.test(t) && !SKIP_WORDS.has(t));
 }
 
 function getRecencyWeight(pubDate: string): number {
@@ -122,14 +122,15 @@ export function scoreSignals(
         }
       });
 
-      // Individual meaningful words from VC post title
+      // Individual meaningful words (4+ chars) from VC post title — +1 × weight per match
       for (const word of titleWords) {
         if (matchedThemesSet.has(word)) continue;
-        let wordScore = 0;
-        if (nameLower.includes(word)) wordScore += 1.0;
-        if (linerLower.includes(word)) wordScore += 0.5;
-        if (wordScore > 0) {
-          postScore += wordScore * weight;
+        if (
+          nameLower.includes(word) ||
+          linerLower.includes(word) ||
+          tagsLower.includes(word)
+        ) {
+          postScore += 1.0 * weight;
           matchedThemesSet.add(word);
         }
       }
