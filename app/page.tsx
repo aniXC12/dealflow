@@ -9,9 +9,15 @@ export default async function Home() {
     fetchSequoiaPosts(),
   ]);
 
-  // Filter out malformed entries, then sort by batch descending
   const displayYC = [...ycCompanies]
-    .filter((c) => c.name.length <= 60 && !c.one_liner.includes('->'))
+    .filter(
+      (c) =>
+        c.name.length <= 60 &&
+        !c.one_liner.includes('->') &&
+        !c.one_liner.includes('Moon Hotel') &&
+        c.one_liner.trim() !== '' &&
+        c.batch.trim() !== '',
+    )
     .sort((a, b) => b.batch.localeCompare(a.batch))
     .slice(0, 30);
 
@@ -25,9 +31,12 @@ export default async function Home() {
         <div>
           <h1 className="text-3xl font-bold text-white">DealFlow</h1>
           <p className="text-sm text-zinc-400">Real-time VC signal tracking</p>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            Last refreshed: {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} · Data updates hourly
-          </p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
+            <p className="text-xs text-zinc-500">
+              Live · {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · Updates hourly
+            </p>
+          </div>
         </div>
       </header>
 

@@ -7,6 +7,32 @@ type Filter = 'All' | 'Consensus Only' | 'a16z' | 'Sequoia';
 
 const FILTERS: Filter[] = ['All', 'Consensus Only', 'a16z', 'Sequoia'];
 
+function buildWhySummary(result: SignalResult): string {
+  const top2 = [...result.matchedThemes]
+    .sort((a, b) => b.length - a.length)
+    .slice(0, 2);
+  const themePart = top2.length >= 2
+    ? `${top2[0]} and ${top2[1]}`
+    : top2[0] ?? 'emerging themes';
+
+  if (result.consensus) {
+    return `Matches themes both a16z and Sequoia are writing about — including ${themePart}`;
+  }
+  if (result.sources.includes('a16z')) {
+    return `Aligns with a16z's recent focus on ${themePart}`;
+  }
+  return `Aligns with Sequoia's recent focus on ${themePart}`;
+}
+
+function topPostIsRelevant(result: SignalResult): boolean {
+  const companyWords = [
+    ...result.company.name.toLowerCase().split(' '),
+    ...result.company.one_liner.toLowerCase().split(' '),
+  ].filter((w) => w.length >= 4);
+  const postTitle = result.topPost.title.toLowerCase();
+  return companyWords.some((w) => postTitle.includes(w));
+}
+
 export default function SignalClient({ results }: { results: SignalResult[] }) {
   const [filter, setFilter] = useState<Filter>('All');
 
@@ -88,19 +114,9 @@ export default function SignalClient({ results }: { results: SignalResult[] }) {
               </div>
 
               {result.matchedThemes.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-3">
-                  {[...result.matchedThemes]
-                    .sort((a, b) => b.length - a.length)
-                    .slice(0, 8)
-                    .map((theme) => (
-                    <span
-                      key={theme}
-                      className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700"
-                    >
-                      {theme}
-                    </span>
-                  ))}
-                </div>
+                <p className="text-zinc-500 text-xs mt-3 italic">
+                  {buildWhySummary(result)}
+                </p>
               )}
 
               <div className="flex items-center gap-3 mt-3 flex-wrap">
@@ -112,14 +128,16 @@ export default function SignalClient({ results }: { results: SignalResult[] }) {
                     {source}
                   </span>
                 ))}
-                <a
-                  href={result.topPost.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-zinc-500 text-xs hover:text-orange-400 transition-colors truncate"
-                >
-                  {result.topPost.title}
-                </a>
+                {topPostIsRelevant(result) && (
+                  <a
+                    href={result.topPost.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-zinc-500 text-xs hover:text-orange-400 transition-colors truncate"
+                  >
+                    {result.topPost.title}
+                  </a>
+                )}
               </div>
             </div>
           );
