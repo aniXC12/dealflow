@@ -9,8 +9,9 @@ export default async function Home() {
     fetchSequoiaPosts(),
   ]);
 
-  // Sort by batch descending (lexicographic reverse: "Winter 2025" > "Summer 2025" > "Winter 2024"…)
+  // Filter out malformed entries, then sort by batch descending
   const displayYC = [...ycCompanies]
+    .filter((c) => c.name.length <= 60 && !c.one_liner.includes('->'))
     .sort((a, b) => b.batch.localeCompare(a.batch))
     .slice(0, 30);
 
@@ -24,6 +25,9 @@ export default async function Home() {
         <div>
           <h1 className="text-3xl font-bold text-white">DealFlow</h1>
           <p className="text-sm text-zinc-400">Real-time VC signal tracking</p>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            Last refreshed: {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} · Data updates hourly
+          </p>
         </div>
       </header>
 

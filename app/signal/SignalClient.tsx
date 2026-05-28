@@ -47,6 +47,13 @@ export default function SignalClient({ results }: { results: SignalResult[] }) {
         ))}
       </div>
 
+      <div className="border border-zinc-700 rounded-lg px-4 py-3 mb-6">
+        <p className="text-zinc-400 text-xs leading-relaxed">
+          Consensus signals appear when the same investment theme surfaces in both a16z and Sequoia
+          content within 30 days. Scored across 5,900+ YC companies.
+        </p>
+      </div>
+
       <div className="space-y-4">
         {filtered.map((result) => {
           const scoreBadgeClass =

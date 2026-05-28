@@ -83,6 +83,10 @@ export default function ThemesChart({ themes }: { themes: ThemeFrequency[] }) {
           </tbody>
         </table>
       </div>
+
+      <p className="text-zinc-600 text-xs mt-4">
+        * Sequoia feed publishes titles only — article content unavailable via RSS.
+      </p>
     </main>
   );
 }
