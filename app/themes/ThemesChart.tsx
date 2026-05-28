@@ -16,7 +16,7 @@ export default function ThemesChart({ themes }: { themes: ThemeFrequency[] }) {
     <main className="min-h-screen bg-[#0a0a0a] p-6">
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-white">Theme Analysis</h1>
-        <p className="text-zinc-400 text-sm mt-1">Top n-gram themes across a16z &amp; Sequoia posts</p>
+        <p className="text-zinc-400 text-sm mt-1">Investment themes extracted from a16z and Sequoia content — updated hourly</p>
       </header>
 
       <div className="bg-zinc-900 rounded-xl p-6 mb-8" style={{ height: 580 }}>

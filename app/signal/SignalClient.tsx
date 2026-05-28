@@ -85,9 +85,9 @@ export default function SignalClient({ results }: { results: SignalResult[] }) {
         <h1 className="text-3xl font-bold text-white">Signal Intelligence</h1>
       </header>
 
-      <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg px-4 py-3 mb-6">
+      <div className="bg-orange-950/30 border border-orange-800/40 rounded-lg px-4 py-3 mb-6">
         <p className="text-orange-400 font-medium">
-          {consensusCount} consensus signals found
+          {consensusCount} consensus signals detected this session
         </p>
       </div>
 
