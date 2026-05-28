@@ -4,8 +4,20 @@ import { useState } from 'react';
 import type { SignalResult } from '@/lib/types';
 
 type Filter = 'All' | 'Consensus Only' | 'a16z' | 'Sequoia';
+type SectorFilter = 'All Sectors' | 'AI & ML' | 'Defense' | 'Fintech' | 'Enterprise' | 'Healthcare' | 'Infrastructure';
 
 const FILTERS: Filter[] = ['All', 'Consensus Only', 'a16z', 'Sequoia'];
+const SECTOR_FILTERS: SectorFilter[] = ['All Sectors', 'AI & ML', 'Defense', 'Fintech', 'Enterprise', 'Healthcare', 'Infrastructure'];
+
+const SECTOR_KEYWORDS: Record<SectorFilter, string[]> = {
+  'All Sectors': [],
+  'AI & ML': ['ai', 'machine learning', 'llm', 'nlp', 'artificial intelligence', 'ml'],
+  'Defense': ['defense', 'govtech', 'military', 'security', 'government'],
+  'Fintech': ['fintech', 'finance', 'payments', 'banking', 'insurance'],
+  'Enterprise': ['enterprise', 'b2b', 'saas', 'workflow', 'productivity'],
+  'Healthcare': ['healthcare', 'medical', 'biotech', 'health', 'clinical'],
+  'Infrastructure': ['infrastructure', 'developer tools', 'devtools', 'cloud', 'data'],
+};
 
 const NOISE_WORDS = new Set([
   'your', 'local', 'plaintiff', 'whether', 'think', 'caught', 'every',
@@ -45,17 +57,27 @@ function topPostIsRelevant(result: SignalResult): boolean {
   return companyWords.some((w) => postTitle.includes(w));
 }
 
+function matchesSector(result: SignalResult, sector: SectorFilter): boolean {
+  if (sector === 'All Sectors') return true;
+  const keywords = SECTOR_KEYWORDS[sector];
+  const tags = result.company.tags.map((t) => t.toLowerCase());
+  return keywords.some((kw) => tags.some((tag) => tag.includes(kw)));
+}
+
 export default function SignalClient({ results }: { results: SignalResult[] }) {
   const [filter, setFilter] = useState<Filter>('All');
+  const [sector, setSector] = useState<SectorFilter>('All Sectors');
 
   const filtered = results.filter((r) => {
-    if (filter === 'Consensus Only') return r.consensus;
-    if (filter === 'a16z') return r.sources.includes('a16z');
-    if (filter === 'Sequoia') return r.sources.includes('sequoia');
-    return true;
+    const sourceMatch =
+      filter === 'Consensus Only' ? r.consensus :
+      filter === 'a16z' ? r.sources.includes('a16z') :
+      filter === 'Sequoia' ? r.sources.includes('sequoia') :
+      true;
+    return sourceMatch && matchesSector(r, sector);
   });
 
-  const consensusCount = results.filter((r) => r.consensus).length;
+  const consensusCount = filtered.filter((r) => r.consensus).length;
 
   return (
     <main className="min-h-screen bg-[#0a0a0a] p-6">
@@ -69,7 +91,7 @@ export default function SignalClient({ results }: { results: SignalResult[] }) {
         </p>
       </div>
 
-      <div className="flex gap-2 mb-6 flex-wrap">
+      <div className="flex gap-2 mb-3 flex-wrap">
         {FILTERS.map((f) => (
           <button
             key={f}
@@ -81,6 +103,23 @@ export default function SignalClient({ results }: { results: SignalResult[] }) {
             }`}
           >
             {f}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-2 mb-6 flex-wrap">
+        <span className="text-zinc-500 text-sm shrink-0">Sector:</span>
+        {SECTOR_FILTERS.map((s) => (
+          <button
+            key={s}
+            onClick={() => setSector(s)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              sector === s
+                ? 'bg-zinc-600 text-white'
+                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+            }`}
+          >
+            {s}
           </button>
         ))}
       </div>
